@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nier-inference"
+version = "0.1.0"
+description = "GPU inference service for factory floor PPE detection"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Nier Team", email = "team@nier.io"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "grpcio>=1.60.0",
+    "grpcio-tools>=1.60.0",
+    "torch>=2.1.0",
+    "torchvision>=0.16.0",
+    "onnxruntime-gpu>=1.16.0",
+    "kafka-python>=2.0.2",
+    "ultralytics>=8.1.0",
+    "numpy>=1.24.0",
+    "opencv-python>=4.9.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "python-multipart>=0.0.6",
+    "prometheus-client>=0.19.0",
+    "structlog>=24.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "mypy>=1.8.0",
+    "ruff>=0.1.0",
+    "black>=24.1.0",
+    "grpcio-testing>=1.60.0",
+]
+
+[project.scripts]
+nier-inference = "src.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "ANN", "B", "C4", "SIM"]
+ignore = ["ANN101", "ANN102"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

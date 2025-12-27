@@ -1,0 +1,297 @@
+// Protocol buffer definitions for the Nier inference service.
+// Defines gRPC interfaces for PPE detection inference requests.
+
+syntax = "proto3";
+
+package nier.inference.v1;
+
+option go_package = "github.com/nier/inference/v1;inferencev1";
+option java_package = "io.nier.inference.v1";
+option java_multiple_files = true;
+
+// InferenceService provides PPE detection inference capabilities.
+service InferenceService {
+  // Infer performs PPE detection on a single image frame.
+  rpc Infer(InferRequest) returns (InferResponse);
+
+  // InferBatch performs PPE detection on a batch of image frames.
+  rpc InferBatch(InferBatchRequest) returns (InferBatchResponse);
+
+  // InferStream performs streaming inference on a sequence of frames.
+  rpc InferStream(stream InferRequest) returns (stream InferResponse);
+
+  // GetModelInfo returns information about the loaded model.
+  rpc GetModelInfo(GetModelInfoRequest) returns (GetModelInfoResponse);
+
+  // HealthCheck returns the health status of the service.
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// InferRequest represents a single inference request.
+message InferRequest {
+  // Unique identifier for this frame.
+  string frame_id = 1;
+
+  // Timestamp of the frame in milliseconds since epoch.
+  int64 timestamp_ms = 2;
+
+  // Image data as bytes (JPEG or PNG encoded).
+  bytes image_data = 3;
+
+  // Image encoding format.
+  ImageFormat format = 4;
+
+  // Optional worker ID for tracking.
+  string worker_id = 5;
+
+  // Optional camera ID.
+  string camera_id = 6;
+
+  // Optional inference parameters to override defaults.
+  InferenceParams params = 7;
+}
+
+// ImageFormat specifies the encoding of image data.
+enum ImageFormat {
+  IMAGE_FORMAT_UNSPECIFIED = 0;
+  IMAGE_FORMAT_JPEG = 1;
+  IMAGE_FORMAT_PNG = 2;
+  IMAGE_FORMAT_RAW_BGR = 3;
+  IMAGE_FORMAT_RAW_RGB = 4;
+}
+
+// InferenceParams allows overriding default inference parameters.
+message InferenceParams {
+  // Minimum confidence threshold (0.0 to 1.0).
+  float confidence_threshold = 1;
+
+  // IoU threshold for NMS (0.0 to 1.0).
+  float iou_threshold = 2;
+
+  // Maximum number of detections to return.
+  int32 max_detections = 3;
+
+  // Specific classes to detect (empty means all).
+  repeated string classes = 4;
+}
+
+// InferResponse contains the results of inference on a single frame.
+message InferResponse {
+  // The frame ID from the request.
+  string frame_id = 1;
+
+  // Timestamp from the request.
+  int64 timestamp_ms = 2;
+
+  // List of detections found in the frame.
+  repeated Detection detections = 3;
+
+  // Inference time in milliseconds.
+  float inference_time_ms = 4;
+
+  // Original image dimensions.
+  ImageDimensions image_dimensions = 5;
+
+  // Processing metadata.
+  ProcessingMetadata metadata = 6;
+
+  // Compliance summary for PPE.
+  ComplianceSummary compliance = 7;
+}
+
+// Detection represents a single detected object.
+message Detection {
+  // Class name (e.g., "helmet", "no_helmet", "vest").
+  string class_name = 1;
+
+  // Class ID from the model.
+  int32 class_id = 2;
+
+  // Detection confidence (0.0 to 1.0).
+  float confidence = 3;
+
+  // Bounding box in normalized coordinates [0, 1].
+  BoundingBox bbox = 4;
+
+  // Additional detection metadata.
+  map<string, string> metadata = 5;
+}
+
+// BoundingBox defines a rectangular region in normalized coordinates.
+message BoundingBox {
+  // Minimum X coordinate (left edge).
+  float x_min = 1;
+
+  // Minimum Y coordinate (top edge).
+  float y_min = 2;
+
+  // Maximum X coordinate (right edge).
+  float x_max = 3;
+
+  // Maximum Y coordinate (bottom edge).
+  float y_max = 4;
+}
+
+// ImageDimensions specifies image size.
+message ImageDimensions {
+  int32 width = 1;
+  int32 height = 2;
+}
+
+// ProcessingMetadata contains information about inference processing.
+message ProcessingMetadata {
+  // Model type used (yolo, onnx).
+  string model_type = 1;
+
+  // Device used for inference.
+  string device = 2;
+
+  // Batch size used.
+  int32 batch_size = 3;
+
+  // Whether half precision was used.
+  bool half_precision = 4;
+
+  // Service version.
+  string service_version = 5;
+}
+
+// ComplianceSummary provides a summary of PPE compliance.
+message ComplianceSummary {
+  // Whether the frame has any violations.
+  bool has_violations = 1;
+
+  // Count of violations detected.
+  int32 violation_count = 2;
+
+  // List of violation types (e.g., "no_helmet").
+  repeated string violations = 3;
+
+  // List of compliant PPE items found.
+  repeated string compliant_items = 4;
+
+  // Number of persons detected.
+  int32 person_count = 5;
+}
+
+// InferBatchRequest contains multiple frames for batch inference.
+message InferBatchRequest {
+  // List of inference requests.
+  repeated InferRequest requests = 1;
+
+  // Whether to process sequentially or in parallel.
+  bool sequential = 2;
+}
+
+// InferBatchResponse contains results for all frames in the batch.
+message InferBatchResponse {
+  // List of inference responses.
+  repeated InferResponse responses = 1;
+
+  // Total processing time for the batch.
+  float total_time_ms = 2;
+
+  // Average time per frame.
+  float avg_time_per_frame_ms = 3;
+
+  // Number of frames processed successfully.
+  int32 successful_count = 4;
+
+  // Number of frames that failed.
+  int32 failed_count = 5;
+}
+
+// GetModelInfoRequest is empty - no parameters needed.
+message GetModelInfoRequest {}
+
+// GetModelInfoResponse contains model information.
+message GetModelInfoResponse {
+  // Model name.
+  string model_name = 1;
+
+  // Model version.
+  string model_version = 2;
+
+  // Model type (yolo, onnx).
+  string model_type = 3;
+
+  // List of class names the model detects.
+  repeated string class_names = 4;
+
+  // Expected input dimensions.
+  ImageDimensions input_size = 5;
+
+  // Whether the model is loaded and ready.
+  bool is_loaded = 6;
+
+  // Device the model is running on.
+  string device = 7;
+
+  // GPU memory usage if applicable.
+  GPUMemoryInfo gpu_memory = 8;
+}
+
+// GPUMemoryInfo contains GPU memory statistics.
+message GPUMemoryInfo {
+  // Whether GPU is available.
+  bool available = 1;
+
+  // Total GPU memory in MB.
+  float total_mb = 2;
+
+  // Allocated GPU memory in MB.
+  float allocated_mb = 3;
+
+  // Free GPU memory in MB.
+  float free_mb = 4;
+
+  // GPU memory utilization percentage.
+  float utilization_percent = 5;
+}
+
+// HealthCheckRequest is empty - no parameters needed.
+message HealthCheckRequest {}
+
+// HealthCheckResponse contains service health information.
+message HealthCheckResponse {
+  // Overall health status.
+  HealthStatus status = 1;
+
+  // Whether the model is loaded.
+  bool model_loaded = 2;
+
+  // Whether Kafka is connected.
+  bool kafka_connected = 3;
+
+  // Service uptime in seconds.
+  float uptime_seconds = 4;
+
+  // Number of requests processed.
+  int64 requests_processed = 5;
+
+  // Current requests in queue.
+  int32 queue_depth = 6;
+
+  // Detailed component health.
+  map<string, ComponentHealth> components = 7;
+}
+
+// HealthStatus indicates the overall health state.
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+}
+
+// ComponentHealth describes the health of a single component.
+message ComponentHealth {
+  // Whether the component is healthy.
+  bool healthy = 1;
+
+  // Human-readable status message.
+  string message = 2;
+
+  // Last check timestamp.
+  int64 last_check_ms = 3;
+}
