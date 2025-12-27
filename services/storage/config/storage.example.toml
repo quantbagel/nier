@@ -1,0 +1,53 @@
+# Nier Storage Service Configuration
+# Copy to storage.toml and modify for your environment
+
+[service]
+name = "storage-service"
+log_level = "info"  # trace, debug, info, warn, error
+metrics_port = 9090
+
+[kafka]
+bootstrap_servers = "localhost:9092"
+consumer_group = "storage-service"
+storage_trigger_topic = "nier.storage.triggers"
+detections_topic = "nier.detections"
+auto_offset_reset = "earliest"
+session_timeout_ms = 30000
+max_poll_interval_ms = 300000
+ssl_enabled = false
+# ssl_ca_location = "/path/to/ca.pem"
+# sasl_username = "username"
+# sasl_password = "password"
+
+[s3]
+bucket = "nier-frames"
+region = "us-east-1"
+# endpoint_url = "http://localhost:9000"  # For MinIO/LocalStack
+# force_path_style = true  # Required for MinIO
+presigned_url_expiry_secs = 3600  # 1 hour
+upload_concurrency = 10
+multipart_threshold_bytes = 5242880  # 5MB
+part_size_bytes = 5242880  # 5MB
+
+[database]
+url = "postgres://nier:nier@localhost:5432/nier_storage"
+max_connections = 10
+min_connections = 2
+connect_timeout_secs = 30
+idle_timeout_secs = 600
+run_migrations = true
+
+[frame_selection]
+store_detections = true
+store_samples = true
+sample_rate = 30  # Store 1 frame per 30 frames when no detections (1 FPS at 30 FPS)
+store_debug = true
+min_confidence = 0.5  # Minimum confidence threshold for storing detection frames
+# detection_types = ["safety_vest", "hard_hat", "person"]  # Empty = all types
+max_frame_age_secs = 300  # Reject frames older than 5 minutes
+
+[api]
+host = "0.0.0.0"
+port = 8080
+cors_enabled = true
+# cors_origins = ["http://localhost:3000", "https://dashboard.example.com"]
