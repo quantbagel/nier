@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+package nier.ingest.v1;
+
+// Frame data captured from worker camera glasses
+message Frame {
+    // Unique identifier for this frame
+    string frame_id = 1;
+
+    // Source device identifier (camera glasses ID)
+    string device_id = 2;
+
+    // Unix timestamp in nanoseconds when frame was captured
+    int64 timestamp_ns = 3;
+
+    // Frame sequence number from the RTSP stream
+    uint64 sequence_number = 4;
+
+    // Image dimensions
+    uint32 width = 5;
+    uint32 height = 6;
+
+    // Pixel format (e.g., "RGB24", "BGR24", "NV12")
+    string pixel_format = 7;
+
+    // Raw frame data (preprocessed for inference)
+    bytes data = 8;
+
+    // Optional metadata
+    FrameMetadata metadata = 9;
+}
+
+// Additional metadata for the frame
+message FrameMetadata {
+    // Worker identifier if available
+    string worker_id = 1;
+
+    // Factory zone/area identifier
+    string zone_id = 2;
+
+    // Original frame size before preprocessing
+    uint32 original_width = 3;
+    uint32 original_height = 4;
+
+    // Frames per second of the source stream
+    float source_fps = 5;
+
+    // Bitrate of the source stream in kbps
+    uint32 source_bitrate_kbps = 6;
+}
+
+// Request to submit a frame for inference
+message SubmitFrameRequest {
+    Frame frame = 1;
+
+    // Priority level (higher = more urgent)
+    uint32 priority = 2;
+
+    // Whether to wait for inference result
+    bool sync = 3;
+}
+
+// Response after frame submission
+message SubmitFrameResponse {
+    // Whether the frame was accepted
+    bool accepted = 1;
+
+    // Assigned processing ID for tracking
+    string processing_id = 2;
+
+    // Estimated processing time in milliseconds (if sync=false)
+    uint32 estimated_processing_ms = 3;
+
+    // Error message if not accepted
+    string error_message = 4;
+}
+
+// Stream health check request
+message HealthCheckRequest {
+    string device_id = 1;
+}
+
+// Stream health check response
+message HealthCheckResponse {
+    bool healthy = 1;
+    string status = 2;
+
+    // Stream statistics
+    StreamStats stats = 3;
+}
+
+// Statistics for an active stream
+message StreamStats {
+    // Total frames processed
+    uint64 frames_processed = 1;
+
+    // Frames dropped due to backpressure
+    uint64 frames_dropped = 2;
+
+    // Current frames per second being processed
+    float current_fps = 3;
+
+    // Average latency in milliseconds
+    float avg_latency_ms = 4;
+
+    // Stream uptime in seconds
+    uint64 uptime_seconds = 5;
+
+    // Number of reconnection attempts
+    uint32 reconnect_count = 6;
+}
+
+// Batch frame submission for efficiency
+message SubmitFrameBatchRequest {
+    repeated Frame frames = 1;
+    uint32 priority = 2;
+}
+
+message SubmitFrameBatchResponse {
+    uint32 accepted_count = 1;
+    uint32 rejected_count = 2;
+    repeated string processing_ids = 3;
+}
+
+// Service for sending frames from ingest to inference
+service InferenceService {
+    // Submit a single frame for inference
+    rpc SubmitFrame(SubmitFrameRequest) returns (SubmitFrameResponse);
+
+    // Submit multiple frames in a batch
+    rpc SubmitFrameBatch(SubmitFrameBatchRequest) returns (SubmitFrameBatchResponse);
+
+    // Stream frames continuously
+    rpc StreamFrames(stream SubmitFrameRequest) returns (stream SubmitFrameResponse);
+
+    // Health check
+    rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Configuration for ingest service
+message IngestConfig {
+    // RTSP stream URL
+    string rtsp_url = 1;
+
+    // Device identifier
+    string device_id = 2;
+
+    // Target frames per second for processing
+    float target_fps = 3;
+
+    // Target frame width for inference
+    uint32 target_width = 4;
+
+    // Target frame height for inference
+    uint32 target_height = 5;
+
+    // Maximum reconnection attempts before giving up
+    uint32 max_reconnect_attempts = 6;
+
+    // Base delay between reconnection attempts in milliseconds
+    uint32 reconnect_base_delay_ms = 7;
+}
