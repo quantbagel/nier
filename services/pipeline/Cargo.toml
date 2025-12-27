@@ -1,0 +1,60 @@
+[package]
+name = "nier-pipeline"
+version = "0.1.0"
+edition = "2021"
+description = "Kafka message pipeline for Nier factory floor analytics"
+authors = ["Nier Team"]
+
+[dependencies]
+# Kafka client
+rdkafka = { version = "0.36", features = ["cmake-build", "ssl", "sasl"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Protocol Buffers
+prost = "0.13"
+prost-types = "0.13"
+
+# Configuration
+config = "0.14"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# UUID for message IDs
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Async trait support
+async-trait = "0.1"
+
+# Streaming support
+tokio-stream = "0.1"
+futures = "0.3"
+
+[build-dependencies]
+prost-build = "0.13"
+
+[lib]
+name = "nier_pipeline"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pipeline"
+path = "src/main.rs"
+
+[features]
+default = []
+proto = []

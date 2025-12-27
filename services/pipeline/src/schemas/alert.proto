@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+package nier.pipeline;
+
+import "google/protobuf/timestamp.proto";
+
+// Severity level of the alert
+enum AlertSeverity {
+  ALERT_SEVERITY_UNSPECIFIED = 0;
+  ALERT_SEVERITY_INFO = 1;
+  ALERT_SEVERITY_WARNING = 2;
+  ALERT_SEVERITY_CRITICAL = 3;
+  ALERT_SEVERITY_EMERGENCY = 4;
+}
+
+// Type of safety alert
+enum AlertType {
+  ALERT_TYPE_UNSPECIFIED = 0;
+  // PPE-related alerts
+  ALERT_TYPE_PPE_VIOLATION = 1;
+  ALERT_TYPE_PPE_MISSING = 2;
+  // Activity-related alerts
+  ALERT_TYPE_UNSAFE_ACTIVITY = 3;
+  ALERT_TYPE_RESTRICTED_ZONE_ENTRY = 4;
+  ALERT_TYPE_FALL_DETECTED = 5;
+  ALERT_TYPE_UNUSUAL_INACTIVITY = 6;
+  // Environmental alerts
+  ALERT_TYPE_HAZARD_DETECTED = 7;
+  ALERT_TYPE_EQUIPMENT_MALFUNCTION = 8;
+  // Device alerts
+  ALERT_TYPE_DEVICE_LOW_BATTERY = 9;
+  ALERT_TYPE_DEVICE_OFFLINE = 10;
+  ALERT_TYPE_DEVICE_ERROR = 11;
+  // Aggregated alerts
+  ALERT_TYPE_PATTERN_DETECTED = 12;
+  ALERT_TYPE_THRESHOLD_EXCEEDED = 13;
+}
+
+// Current status of the alert
+enum AlertStatus {
+  ALERT_STATUS_UNSPECIFIED = 0;
+  ALERT_STATUS_NEW = 1;
+  ALERT_STATUS_ACKNOWLEDGED = 2;
+  ALERT_STATUS_IN_PROGRESS = 3;
+  ALERT_STATUS_RESOLVED = 4;
+  ALERT_STATUS_DISMISSED = 5;
+  ALERT_STATUS_ESCALATED = 6;
+}
+
+// Alert recipient type
+enum RecipientType {
+  RECIPIENT_TYPE_UNSPECIFIED = 0;
+  RECIPIENT_TYPE_WORKER = 1;
+  RECIPIENT_TYPE_SUPERVISOR = 2;
+  RECIPIENT_TYPE_SAFETY_OFFICER = 3;
+  RECIPIENT_TYPE_CONTROL_ROOM = 4;
+  RECIPIENT_TYPE_SYSTEM = 5;
+}
+
+// Geographic zone reference
+message ZoneReference {
+  string zone_id = 1;
+  string zone_name = 2;
+  string zone_type = 3;
+}
+
+// Reference to the source detection that triggered the alert
+message DetectionReference {
+  string event_id = 1;
+  string frame_id = 2;
+  // Snapshot URL for visual evidence
+  optional string snapshot_url = 3;
+  // Video clip URL if available
+  optional string video_clip_url = 4;
+}
+
+// Alert recipient information
+message AlertRecipient {
+  RecipientType type = 1;
+  string recipient_id = 2;
+  string name = 3;
+  // Contact method (e.g., "push_notification", "sms", "email", "radio")
+  string contact_method = 4;
+  // Timestamp when recipient was notified
+  optional google.protobuf.Timestamp notified_at = 5;
+  // Whether recipient acknowledged the alert
+  bool acknowledged = 6;
+}
+
+// Action taken on an alert
+message AlertAction {
+  string action_id = 1;
+  string action_type = 2;
+  string performed_by = 3;
+  google.protobuf.Timestamp performed_at = 4;
+  string notes = 5;
+}
+
+// Escalation rule that was applied
+message EscalationInfo {
+  uint32 escalation_level = 1;
+  string rule_id = 2;
+  google.protobuf.Timestamp escalated_at = 3;
+  string reason = 4;
+}
+
+// Main alert message
+message Alert {
+  // Unique alert identifier
+  string alert_id = 1;
+
+  // Alert classification
+  AlertType alert_type = 2;
+  AlertSeverity severity = 3;
+  AlertStatus status = 4;
+
+  // Human-readable alert information
+  string title = 5;
+  string description = 6;
+
+  // When the alert was generated
+  google.protobuf.Timestamp created_at = 7;
+  // When the alert was last updated
+  google.protobuf.Timestamp updated_at = 8;
+  // Expiration time for auto-dismissal
+  optional google.protobuf.Timestamp expires_at = 9;
+
+  // Source information
+  string device_id = 10;
+  optional string worker_id = 11;
+  optional ZoneReference zone = 12;
+
+  // Link to detection(s) that triggered this alert
+  repeated DetectionReference source_detections = 13;
+
+  // Recipients and their statuses
+  repeated AlertRecipient recipients = 14;
+
+  // Actions taken on this alert
+  repeated AlertAction actions = 15;
+
+  // Escalation information
+  optional EscalationInfo escalation = 16;
+
+  // Priority score for ordering (higher = more urgent)
+  uint32 priority_score = 17;
+
+  // Tags for filtering and categorization
+  repeated string tags = 18;
+
+  // Rule ID that generated this alert
+  string rule_id = 19;
+
+  // Additional context
+  map<string, string> metadata = 20;
+}
+
+// Alert acknowledgment message
+message AlertAcknowledgment {
+  string alert_id = 1;
+  string acknowledged_by = 2;
+  google.protobuf.Timestamp acknowledged_at = 3;
+  optional string notes = 4;
+}
+
+// Alert resolution message
+message AlertResolution {
+  string alert_id = 1;
+  string resolved_by = 2;
+  google.protobuf.Timestamp resolved_at = 3;
+  string resolution_type = 4;  // "fixed", "false_positive", "deferred", etc.
+  string resolution_notes = 5;
+  // Corrective actions taken
+  repeated string corrective_actions = 6;
+}
+
+// Batch of alerts for efficient transport
+message AlertBatch {
+  repeated Alert alerts = 1;
+  google.protobuf.Timestamp batch_timestamp = 2;
+}
