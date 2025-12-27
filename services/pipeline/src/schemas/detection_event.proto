@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package nier.pipeline;
+
+import "google/protobuf/timestamp.proto";
+
+// PPE violation types detected by the system
+enum PPEViolationType {
+  PPE_VIOLATION_UNSPECIFIED = 0;
+  PPE_VIOLATION_NO_HELMET = 1;
+  PPE_VIOLATION_NO_SAFETY_VEST = 2;
+  PPE_VIOLATION_NO_SAFETY_GLASSES = 3;
+  PPE_VIOLATION_NO_GLOVES = 4;
+  PPE_VIOLATION_NO_SAFETY_BOOTS = 5;
+  PPE_VIOLATION_NO_EAR_PROTECTION = 6;
+  PPE_VIOLATION_NO_FACE_MASK = 7;
+}
+
+// Activity types that can be detected
+enum ActivityType {
+  ACTIVITY_UNSPECIFIED = 0;
+  ACTIVITY_WALKING = 1;
+  ACTIVITY_STANDING = 2;
+  ACTIVITY_OPERATING_MACHINERY = 3;
+  ACTIVITY_LIFTING = 4;
+  ACTIVITY_CLIMBING = 5;
+  ACTIVITY_RUNNING = 6;
+  ACTIVITY_FALLING = 7;
+  ACTIVITY_REACHING = 8;
+  ACTIVITY_CARRYING = 9;
+}
+
+// Bounding box for detected objects
+message BoundingBox {
+  // Normalized coordinates (0.0 - 1.0)
+  float x_min = 1;
+  float y_min = 2;
+  float x_max = 3;
+  float y_max = 4;
+}
+
+// Confidence score with optional breakdown
+message ConfidenceScore {
+  // Overall confidence (0.0 - 1.0)
+  float overall = 1;
+  // Model-specific confidence breakdown
+  map<string, float> breakdown = 2;
+}
+
+// PPE violation detection event
+message PPEViolation {
+  PPEViolationType violation_type = 1;
+  BoundingBox bounding_box = 2;
+  ConfidenceScore confidence = 3;
+  // Optional worker ID if identified
+  optional string worker_id = 4;
+}
+
+// Activity detection event
+message ActivityDetection {
+  ActivityType activity_type = 1;
+  BoundingBox bounding_box = 2;
+  ConfidenceScore confidence = 3;
+  // Duration of activity in milliseconds (if tracking)
+  optional uint64 duration_ms = 4;
+  // Optional worker ID if identified
+  optional string worker_id = 5;
+}
+
+// Zone information where detection occurred
+message Zone {
+  string zone_id = 1;
+  string zone_name = 2;
+  // Zone type (e.g., "assembly", "warehouse", "hazardous")
+  string zone_type = 3;
+  // Required PPE for this zone
+  repeated PPEViolationType required_ppe = 4;
+}
+
+// Main detection event message
+message DetectionEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Source frame information
+  string frame_id = 2;
+  string device_id = 3;
+
+  // Timestamp when detection was made
+  google.protobuf.Timestamp timestamp = 4;
+
+  // Detection results
+  repeated PPEViolation ppe_violations = 5;
+  repeated ActivityDetection activity_detections = 6;
+
+  // Zone where detection occurred
+  optional Zone zone = 7;
+
+  // Model information
+  string model_id = 8;
+  string model_version = 9;
+
+  // Processing latency in milliseconds
+  uint32 processing_latency_ms = 10;
+
+  // Additional metadata
+  map<string, string> metadata = 11;
+}
+
+// Batch of detection events for efficient transport
+message DetectionEventBatch {
+  repeated DetectionEvent events = 1;
+  // Batch creation timestamp
+  google.protobuf.Timestamp batch_timestamp = 2;
+  // Source device for all events in batch
+  string device_id = 3;
+}

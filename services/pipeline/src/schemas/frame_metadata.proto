@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+package nier.pipeline;
+
+import "google/protobuf/timestamp.proto";
+
+// Camera resolution preset
+enum Resolution {
+  RESOLUTION_UNSPECIFIED = 0;
+  RESOLUTION_480P = 1;
+  RESOLUTION_720P = 2;
+  RESOLUTION_1080P = 3;
+  RESOLUTION_4K = 4;
+}
+
+// Frame encoding format
+enum FrameFormat {
+  FRAME_FORMAT_UNSPECIFIED = 0;
+  FRAME_FORMAT_JPEG = 1;
+  FRAME_FORMAT_PNG = 2;
+  FRAME_FORMAT_H264 = 3;
+  FRAME_FORMAT_H265 = 4;
+  FRAME_FORMAT_RAW = 5;
+}
+
+// Device type for the camera glasses
+enum DeviceType {
+  DEVICE_TYPE_UNSPECIFIED = 0;
+  DEVICE_TYPE_SMART_GLASSES_V1 = 1;
+  DEVICE_TYPE_SMART_GLASSES_V2 = 2;
+  DEVICE_TYPE_HELMET_CAM = 3;
+  DEVICE_TYPE_FIXED_CAMERA = 4;
+}
+
+// GPS coordinates
+message GeoLocation {
+  double latitude = 1;
+  double longitude = 2;
+  // Accuracy in meters
+  float accuracy = 3;
+  // Altitude in meters (optional)
+  optional float altitude = 4;
+}
+
+// IMU sensor data
+message IMUData {
+  // Accelerometer readings (m/s^2)
+  float accel_x = 1;
+  float accel_y = 2;
+  float accel_z = 3;
+
+  // Gyroscope readings (rad/s)
+  float gyro_x = 4;
+  float gyro_y = 5;
+  float gyro_z = 6;
+
+  // Magnetometer readings (uT) - optional
+  optional float mag_x = 7;
+  optional float mag_y = 8;
+  optional float mag_z = 9;
+}
+
+// Device health status
+message DeviceHealth {
+  // Battery level (0-100)
+  uint32 battery_level = 1;
+  // Device temperature in Celsius
+  float temperature_celsius = 2;
+  // Storage remaining in bytes
+  uint64 storage_remaining_bytes = 3;
+  // WiFi signal strength in dBm
+  int32 wifi_signal_dbm = 4;
+  // Is device charging
+  bool is_charging = 5;
+}
+
+// Worker assignment information
+message WorkerAssignment {
+  string worker_id = 1;
+  string worker_name = 2;
+  string shift_id = 3;
+  string department = 4;
+  string role = 5;
+}
+
+// Frame metadata message
+message FrameMetadata {
+  // Unique frame identifier
+  string frame_id = 1;
+
+  // Device information
+  string device_id = 2;
+  DeviceType device_type = 3;
+  string device_firmware_version = 4;
+
+  // Capture timestamp (when frame was captured on device)
+  google.protobuf.Timestamp capture_timestamp = 5;
+  // Upload timestamp (when frame was sent to server)
+  google.protobuf.Timestamp upload_timestamp = 6;
+
+  // Frame properties
+  Resolution resolution = 7;
+  FrameFormat format = 8;
+  uint32 width = 9;
+  uint32 height = 10;
+  uint32 frame_number = 11;
+
+  // Frame data location (could be S3 URL, local path, etc.)
+  string frame_data_uri = 12;
+  // Frame size in bytes
+  uint64 frame_size_bytes = 13;
+
+  // Sensor data
+  optional GeoLocation location = 14;
+  optional IMUData imu_data = 15;
+
+  // Device health at time of capture
+  optional DeviceHealth device_health = 16;
+
+  // Worker wearing this device
+  optional WorkerAssignment worker = 17;
+
+  // Quality metrics
+  optional float brightness = 18;  // 0.0 - 1.0
+  optional float blur_score = 19;  // 0.0 (sharp) - 1.0 (blurry)
+  optional bool is_occluded = 20;
+
+  // Session information
+  string session_id = 21;
+
+  // Additional metadata
+  map<string, string> metadata = 22;
+}
+
+// Batch of frame metadata for efficient transport
+message FrameMetadataBatch {
+  repeated FrameMetadata frames = 1;
+  // Batch creation timestamp
+  google.protobuf.Timestamp batch_timestamp = 2;
+  // Source device for all frames in batch
+  string device_id = 3;
+  // Sequence information for ordering
+  uint64 batch_sequence_number = 4;
+}
