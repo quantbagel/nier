@@ -1,0 +1,134 @@
+# Default values for nier-inference
+# This is a YAML-formatted file.
+
+replicaCount: 2
+
+image:
+  repository: nier/inference
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account (for IRSA)
+  annotations: {}
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/nier-inference-role
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  grpcPort: 50051
+  metricsPort: 8080
+
+resources:
+  limits:
+    cpu: "4"
+    memory: 8Gi
+    nvidia.com/gpu: "1"
+  requests:
+    cpu: "2"
+    memory: 4Gi
+    nvidia.com/gpu: "1"
+
+# Environment variables for the inference service
+env:
+  MODEL_PATH: /models/ppe
+  KAFKA_BROKERS: kafka:9092
+  CONFIDENCE_THRESHOLD: "0.7"
+  BATCH_SIZE: "8"
+
+# Additional environment variables from secrets or configmaps
+envFrom: []
+  # - secretRef:
+  #     name: inference-secrets
+  # - configMapRef:
+  #     name: inference-config
+
+# Liveness probe configuration
+livenessProbe:
+  grpc:
+    port: 50051
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+  successThreshold: 1
+
+# Readiness probe configuration
+readinessProbe:
+  grpc:
+    port: 50051
+  initialDelaySeconds: 15
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+  successThreshold: 1
+
+# GPU node selector
+nodeSelector:
+  gpu: "true"
+
+# Tolerations for GPU nodes
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+affinity: {}
+
+# Volume mounts for model storage
+volumes:
+  - name: model-cache
+    emptyDir: {}
+  - name: tmp
+    emptyDir: {}
+
+volumeMounts:
+  - name: model-cache
+    mountPath: /models
+  - name: tmp
+    mountPath: /tmp
+
+# Topology spread constraints for HA
+topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: topology.kubernetes.io/zone
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app.kubernetes.io/name: nier-inference
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80

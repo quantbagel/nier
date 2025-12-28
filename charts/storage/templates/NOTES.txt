@@ -1,0 +1,42 @@
+Nier Storage Service has been deployed!
+
+1. Get the application URL by running these commands:
+{{- if contains "ClusterIP" .Values.service.type }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "nier-storage.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
+{{- end }}
+
+2. Check the service status:
+  kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "nier-storage.name" . }}"
+
+3. View logs:
+  kubectl logs --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "nier-storage.name" . }}" -f
+
+4. Configuration Notes:
+
+   S3 Access (IRSA):
+   - Ensure you have configured the IAM role with S3 permissions
+   - Set the role ARN in serviceAccount.annotations:
+     eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/nier-storage-s3-role
+
+   Database:
+   - Set database.existingSecret to use a Kubernetes secret for DATABASE_URL
+   - Or set database.url directly (not recommended for production)
+
+   Kafka:
+   - Configure kafka.brokers to point to your Kafka cluster
+   - Default topic: {{ .Values.kafka.topic }}
+
+   Storage Settings:
+   - Sample rate: {{ .Values.storage.sampleRate }} (percentage of frames to store randomly)
+   - Detections are {{ if .Values.storage.storeDetections }}always{{ else }}not{{ end }} stored
+
+5. API Endpoints:
+   - GET /health - Health check
+   - GET /ready - Readiness check
+   - GET /api/v1/frames/{id}/url - Generate presigned URL for frame
+   - GET /api/v1/frames - List stored frames with metadata
+
+For more information, visit the project documentation.

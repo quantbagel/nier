@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nier-inference.configmapName" . }}
+  labels:
+    {{- include "nier-inference.labels" . | nindent 4 }}
+data:
+  MODEL_PATH: {{ .Values.env.MODEL_PATH | quote }}
+  KAFKA_BROKERS: {{ .Values.env.KAFKA_BROKERS | quote }}
+  CONFIDENCE_THRESHOLD: {{ .Values.env.CONFIDENCE_THRESHOLD | quote }}
+  BATCH_SIZE: {{ .Values.env.BATCH_SIZE | quote }}

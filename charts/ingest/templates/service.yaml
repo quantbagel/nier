@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nier-ingest.fullname" . }}
+  labels:
+    {{- include "nier-ingest.labels" . | nindent 4 }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "{{ .Values.service.healthPort }}"
+    prometheus.io/path: "/metrics"
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.healthPort }}
+      targetPort: health
+      protocol: TCP
+      name: health
+    - port: {{ .Values.service.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "nier-ingest.selectorLabels" . | nindent 4 }}

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nier-dashboard.configmapName" . }}
+  labels:
+    {{- include "nier-dashboard.labels" . | nindent 4 }}
+data:
+  DASHBOARD_REFRESH_INTERVAL: {{ .Values.config.refreshInterval | quote }}
+  DASHBOARD_MAX_CAMERA_FEEDS: {{ .Values.config.maxCameraFeeds | quote }}
+  DASHBOARD_ALERT_RETENTION_DAYS: {{ .Values.config.alertRetentionDays | quote }}
+  DASHBOARD_ENABLE_METRICS: {{ .Values.config.enableMetrics | quote }}

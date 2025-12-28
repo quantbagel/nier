@@ -1,0 +1,31 @@
+{{- if .Values.configMap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nier-storage.fullname" . }}
+  labels:
+    {{- include "nier-storage.labels" . | nindent 4 }}
+data:
+  # S3 Configuration
+  S3_BUCKET: {{ .Values.s3.bucket | quote }}
+  S3_REGION: {{ .Values.s3.region | quote }}
+  S3_PATH_PREFIX: {{ .Values.s3.pathPrefix | quote }}
+  PRESIGNED_URL_EXPIRY: {{ .Values.s3.presignedUrlExpiry | quote }}
+
+  # Kafka Configuration
+  KAFKA_BROKERS: {{ .Values.kafka.brokers | quote }}
+  KAFKA_CONSUMER_GROUP: {{ .Values.kafka.consumerGroup | quote }}
+  KAFKA_TOPIC: {{ .Values.kafka.topic | quote }}
+  KAFKA_SESSION_TIMEOUT: {{ .Values.kafka.sessionTimeout | quote }}
+  KAFKA_HEARTBEAT_INTERVAL: {{ .Values.kafka.heartbeatInterval | quote }}
+
+  # Database Configuration
+  DATABASE_MAX_CONNECTIONS: {{ .Values.database.maxConnections | quote }}
+  DATABASE_MIN_CONNECTIONS: {{ .Values.database.minConnections | quote }}
+
+  # Storage Service Configuration
+  SAMPLE_RATE: {{ .Values.storage.sampleRate | quote }}
+  STORE_DETECTIONS: {{ .Values.storage.storeDetections | quote }}
+  BATCH_SIZE: {{ .Values.storage.batchSize | quote }}
+  WORKER_THREADS: {{ .Values.storage.workerThreads | quote }}
+{{- end }}

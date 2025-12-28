@@ -1,0 +1,158 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nier-storage.fullname" . }}
+  labels:
+    {{- include "nier-storage.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "nier-storage.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "nier-storage.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "nier-storage.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            # S3 Configuration
+            - name: S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: S3_BUCKET
+            - name: S3_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: S3_REGION
+            {{- include "nier-storage.s3Endpoint" . | nindent 12 }}
+            - name: S3_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: S3_PATH_PREFIX
+            - name: PRESIGNED_URL_EXPIRY
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: PRESIGNED_URL_EXPIRY
+            # Database Configuration
+            - name: DATABASE_URL
+              {{- include "nier-storage.databaseUrl" . | nindent 14 }}
+            - name: DATABASE_MAX_CONNECTIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: DATABASE_MAX_CONNECTIONS
+            - name: DATABASE_MIN_CONNECTIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: DATABASE_MIN_CONNECTIONS
+            # Kafka Configuration
+            - name: KAFKA_BROKERS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: KAFKA_BROKERS
+            - name: KAFKA_CONSUMER_GROUP
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: KAFKA_CONSUMER_GROUP
+            - name: KAFKA_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: KAFKA_TOPIC
+            # Storage Configuration
+            - name: SAMPLE_RATE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: SAMPLE_RATE
+            - name: STORE_DETECTIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: STORE_DETECTIONS
+            - name: BATCH_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: BATCH_SIZE
+            - name: WORKER_THREADS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "nier-storage.fullname" . }}
+                  key: WORKER_THREADS
+            # Server Configuration
+            - name: SERVER_PORT
+              value: {{ .Values.service.targetPort | quote }}
+            - name: RUST_LOG
+              value: "info,nier_storage=debug"
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

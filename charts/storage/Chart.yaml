@@ -1,0 +1,18 @@
+apiVersion: v2
+name: nier-storage
+description: A Helm chart for the Nier Storage Service - Rust-based S3 storage service for frame metadata
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+keywords:
+  - storage
+  - s3
+  - kafka
+  - postgresql
+  - rust
+
+maintainers:
+  - name: Nier Team
+
+dependencies: []

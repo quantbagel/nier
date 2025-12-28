@@ -1,0 +1,156 @@
+# Default values for nier-ingest
+# This is a YAML-formatted file.
+
+replicaCount: 2
+
+image:
+  repository: nier/ingest
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  healthPort: 8080
+  grpcPort: 50051
+
+# Environment variables for RTSP ingest configuration
+env:
+  # Size of the RTSP buffer in bytes
+  RTSP_BUFFER_SIZE: "2097152"
+  # Frame sample rate (frames per second to sample)
+  FRAME_SAMPLE_RATE: "5"
+  # gRPC endpoint for the inference service
+  INFERENCE_GRPC_ENDPOINT: "nier-inference:50051"
+  # Log level
+  RUST_LOG: "info"
+
+# Additional environment variables from secrets
+envFromSecrets: []
+  # - name: RTSP_CREDENTIALS
+  #   secretName: rtsp-credentials
+  #   key: credentials
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+# Horizontal Pod Autoscaler configuration
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector:
+  role: ingest-worker
+
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "ingest"
+    effect: "NoSchedule"
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - nier-ingest
+          topologyKey: kubernetes.io/hostname
+
+# Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: health
+  initialDelaySeconds: 10
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: health
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Startup probe for slow-starting containers
+startupProbe:
+  httpGet:
+    path: /health/live
+    port: health
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 30
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# ConfigMap settings
+configMap:
+  # Additional configuration that will be mounted as a file
+  enabled: true
+  mountPath: /etc/nier
+  # Custom configuration file content
+  config: |
+    [rtsp]
+    reconnect_interval_ms = 5000
+    max_reconnect_attempts = 10
+    connection_timeout_ms = 30000
+
+    [decoder]
+    pixel_format = "rgb24"
+    thread_count = 2
+
+    [grpc]
+    max_message_size_bytes = 16777216
+    keepalive_interval_ms = 10000
+    timeout_ms = 30000

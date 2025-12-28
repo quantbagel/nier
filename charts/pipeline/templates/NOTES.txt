@@ -1,0 +1,64 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }}.
+
+== Kafka Pipeline Service ==
+
+The Nier Pipeline service has been deployed with the following configuration:
+
+  Consumer Group: {{ .Values.kafka.consumerGroup }}
+  Input Topic:    {{ .Values.kafka.inputTopic }}
+  Output Topic:   {{ .Values.kafka.outputTopic }}
+  Kafka Brokers:  {{ .Values.kafka.brokers }}
+
+== Service Access ==
+
+The service exposes health and metrics endpoints on port {{ .Values.service.port }}.
+
+To access the service within the cluster:
+
+  {{ include "nier-pipeline.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+
+To port-forward for local testing:
+
+  kubectl port-forward svc/{{ include "nier-pipeline.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+
+== Health Endpoints ==
+
+  Liveness:  http://localhost:{{ .Values.service.port }}/health/live
+  Readiness: http://localhost:{{ .Values.service.port }}/health/ready
+
+== Scaling ==
+
+{{- if .Values.autoscaling.enabled }}
+Horizontal Pod Autoscaler is enabled:
+  Min replicas: {{ .Values.autoscaling.minReplicas }}
+  Max replicas: {{ .Values.autoscaling.maxReplicas }}
+  Target CPU:   {{ .Values.autoscaling.targetCPUUtilizationPercentage }}%
+
+To view HPA status:
+  kubectl get hpa {{ include "nier-pipeline.fullname" . }} -n {{ .Release.Namespace }}
+{{- else }}
+Horizontal Pod Autoscaler is disabled. Running {{ .Values.replicaCount }} replica(s).
+{{- end }}
+
+{{- if .Values.podDisruptionBudget.enabled }}
+
+== Pod Disruption Budget ==
+
+PDB is configured with minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+
+To view PDB status:
+  kubectl get pdb {{ include "nier-pipeline.fullname" . }} -n {{ .Release.Namespace }}
+{{- end }}
+
+== Verify Deployment ==
+
+To check the deployment status:
+
+  kubectl get deployment {{ include "nier-pipeline.fullname" . }} -n {{ .Release.Namespace }}
+  kubectl get pods -l app.kubernetes.io/name={{ include "nier-pipeline.name" . }} -n {{ .Release.Namespace }}
+
+To view logs:
+
+  kubectl logs -l app.kubernetes.io/name={{ include "nier-pipeline.name" . }} -n {{ .Release.Namespace }} -f

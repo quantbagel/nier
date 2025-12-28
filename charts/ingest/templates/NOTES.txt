@@ -1,0 +1,47 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }}.
+
+== RTSP Ingest Service ==
+
+The NIER RTSP ingest service has been deployed with the following configuration:
+
+1. Get the application health endpoint by running:
+   kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ include "nier-ingest.fullname" . }} 8080:{{ .Values.service.healthPort }}
+   Then visit: http://localhost:8080/health/ready
+
+2. Get the gRPC endpoint:
+   kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ include "nier-ingest.fullname" . }} 50051:{{ .Values.service.grpcPort }}
+
+3. Check the status of your pods:
+   kubectl --namespace {{ .Release.Namespace }} get pods -l "app.kubernetes.io/name={{ include "nier-ingest.name" . }},app.kubernetes.io/instance={{ .Release.Name }}"
+
+4. View logs:
+   kubectl --namespace {{ .Release.Namespace }} logs -l "app.kubernetes.io/name={{ include "nier-ingest.name" . }}" -f
+
+== Configuration ==
+
+Environment variables configured:
+{{- range $key, $value := .Values.env }}
+  - {{ $key }}: {{ $value }}
+{{- end }}
+
+{{- if .Values.autoscaling.enabled }}
+
+== Autoscaling ==
+
+HPA is enabled with:
+  - Min replicas: {{ .Values.autoscaling.minReplicas }}
+  - Max replicas: {{ .Values.autoscaling.maxReplicas }}
+  - Target CPU: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}%
+
+Check HPA status:
+  kubectl --namespace {{ .Release.Namespace }} get hpa {{ include "nier-ingest.fullname" . }}
+{{- end }}
+
+== Inference Service Connection ==
+
+The ingest service is configured to send frames to:
+  {{ .Values.env.INFERENCE_GRPC_ENDPOINT }}
+
+Make sure the inference service is running and accessible.

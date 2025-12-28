@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nier-pipeline.configmapName" . }}
+  labels:
+    {{- include "nier-pipeline.labels" . | nindent 4 }}
+    {{- include "nier-pipeline.consumerGroupLabels" . | nindent 4 }}
+data:
+  # Kafka configuration
+  KAFKA_BROKERS: {{ .Values.kafka.brokers | quote }}
+  KAFKA_CONSUMER_GROUP: {{ .Values.kafka.consumerGroup | quote }}
+  INPUT_TOPIC: {{ .Values.kafka.inputTopic | quote }}
+  OUTPUT_TOPIC: {{ .Values.kafka.outputTopic | quote }}
+  KAFKA_SECURITY_PROTOCOL: {{ .Values.kafka.securityProtocol | quote }}
+  {{- if .Values.kafka.sasl.enabled }}
+  KAFKA_SASL_MECHANISM: {{ .Values.kafka.sasl.mechanism | quote }}
+  KAFKA_SASL_USERNAME: {{ .Values.kafka.sasl.username | quote }}
+  {{- end }}
+
+  # Metrics database configuration
+  METRICS_DB_URL: {{ .Values.metricsDb.url | quote }}
+
+  # Application configuration
+  {{- range $key, $value := .Values.env }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

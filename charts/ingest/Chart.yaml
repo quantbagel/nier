@@ -1,0 +1,17 @@
+apiVersion: v2
+name: nier-ingest
+description: A Helm chart for the NIER RTSP ingest service - pulls RTSP streams from camera glasses, decodes frames, and sends to inference via gRPC
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - rtsp
+  - ingest
+  - streaming
+  - video
+  - grpc
+maintainers:
+  - name: NIER Team
+home: https://github.com/nier/ingest
+sources:
+  - https://github.com/nier/ingest

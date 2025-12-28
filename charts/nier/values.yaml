@@ -1,0 +1,474 @@
+# =============================================================================
+# Nier Platform - Umbrella Chart Values
+# =============================================================================
+# Factory floor analytics platform with egocentric camera glasses
+# This file configures all Nier services and their shared dependencies.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Global Configuration
+# -----------------------------------------------------------------------------
+# These values are shared across all sub-charts via .Values.global
+global:
+  # Container image registry (e.g., ECR, Docker Hub, GCR)
+  imageRegistry: ""
+
+  # Image pull secrets for private registries
+  imagePullSecrets: []
+  # - name: ecr-credentials
+
+  # Kafka configuration for event streaming
+  kafka:
+    # MSK bootstrap brokers (comma-separated)
+    brokers: "kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092"
+    # Enable SSL/TLS for Kafka connections
+    ssl:
+      enabled: true
+    # SASL authentication
+    sasl:
+      enabled: false
+      mechanism: "SCRAM-SHA-512"
+
+  # Environment configuration
+  environment: "production"
+
+  # PostgreSQL/RDS configuration
+  postgresql:
+    host: "nier-db.cluster-xxxxx.us-west-2.rds.amazonaws.com"
+    port: 5432
+    database: "nier"
+    # Use existingSecret to reference credentials
+    existingSecret: "nier-db-credentials"
+    existingSecretPasswordKey: "password"
+    existingSecretUsernameKey: "username"
+
+  # S3/Object storage configuration
+  storage:
+    bucket: "nier-analytics-data"
+    region: "us-west-2"
+    # Use IRSA (IAM Roles for Service Accounts) for AWS authentication
+    useIRSA: true
+
+  # Redis configuration for caching and session management
+  redis:
+    host: "nier-redis.xxxxx.cache.amazonaws.com"
+    port: 6379
+    ssl: true
+
+  # Observability configuration
+  observability:
+    # Enable Prometheus metrics scraping
+    metrics:
+      enabled: true
+      port: 9090
+    # Enable distributed tracing
+    tracing:
+      enabled: true
+      # OpenTelemetry collector endpoint
+      otlpEndpoint: "http://otel-collector:4317"
+
+# -----------------------------------------------------------------------------
+# Namespace Configuration
+# -----------------------------------------------------------------------------
+# Create and configure the nier namespace
+namespace:
+  # Whether to create the namespace (set to false if it already exists)
+  create: true
+  name: "nier"
+  labels: {}
+  annotations: {}
+
+# -----------------------------------------------------------------------------
+# Kafka Topics Configuration
+# -----------------------------------------------------------------------------
+# ConfigMap containing the list of required Kafka topics
+kafkaTopics:
+  # Enable Kafka topics ConfigMap creation
+  enabled: true
+  # Topic configurations
+  topics:
+    # Raw video frame ingestion
+    - name: "nier.ingest.frames"
+      partitions: 12
+      replicationFactor: 3
+      retentionMs: 86400000  # 24 hours
+
+    # Inference results from ML models
+    - name: "nier.inference.results"
+      partitions: 12
+      replicationFactor: 3
+      retentionMs: 604800000  # 7 days
+
+    # Processed analytics events
+    - name: "nier.pipeline.events"
+      partitions: 6
+      replicationFactor: 3
+      retentionMs: 2592000000  # 30 days
+
+    # Activity recognition events
+    - name: "nier.pipeline.activities"
+      partitions: 6
+      replicationFactor: 3
+      retentionMs: 2592000000  # 30 days
+
+    # Alerts and notifications
+    - name: "nier.alerts"
+      partitions: 3
+      replicationFactor: 3
+      retentionMs: 604800000  # 7 days
+
+    # Dead letter queue for failed messages
+    - name: "nier.dlq"
+      partitions: 3
+      replicationFactor: 3
+      retentionMs: 2592000000  # 30 days
+
+# -----------------------------------------------------------------------------
+# Ingest Service Configuration
+# -----------------------------------------------------------------------------
+# Receives video frames from camera glasses via WebSocket/gRPC
+ingest:
+  # Enable or disable this service
+  enabled: true
+
+  # Number of replicas (scale based on number of connected devices)
+  replicaCount: 3
+
+  image:
+    repository: nier/ingest
+    tag: ""  # Defaults to appVersion
+    pullPolicy: IfNotPresent
+
+  # Resource requests and limits
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+
+  # Horizontal Pod Autoscaler configuration
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    ports:
+      websocket: 8080
+      grpc: 9090
+      metrics: 9091
+
+  # Ingress configuration for external camera connections
+  ingress:
+    enabled: true
+    className: "alb"
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/healthcheck-path: /health
+    hosts:
+      - host: ingest.nier.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+
+  # Pod disruption budget
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+# -----------------------------------------------------------------------------
+# Inference Service Configuration
+# -----------------------------------------------------------------------------
+# Runs ML models for object detection and activity recognition
+inference:
+  # Enable or disable this service
+  enabled: true
+
+  # Number of replicas (scale based on inference workload)
+  replicaCount: 2
+
+  image:
+    repository: nier/inference
+    tag: ""  # Defaults to appVersion
+    pullPolicy: IfNotPresent
+
+  # Resource requests and limits (GPU-enabled instances)
+  resources:
+    requests:
+      cpu: "2000m"
+      memory: "4Gi"
+      nvidia.com/gpu: "1"
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+      nvidia.com/gpu: "1"
+
+  # Horizontal Pod Autoscaler configuration
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    # Custom metrics for GPU utilization
+    metrics:
+      - type: Pods
+        pods:
+          metric:
+            name: gpu_utilization
+          target:
+            type: AverageValue
+            averageValue: "70"
+
+  # ML model configuration
+  models:
+    # Object detection model
+    objectDetection:
+      enabled: true
+      modelPath: "s3://nier-models/yolov8-factory.onnx"
+      batchSize: 8
+      confidenceThreshold: 0.5
+
+    # Activity recognition model
+    activityRecognition:
+      enabled: true
+      modelPath: "s3://nier-models/action-recognition.onnx"
+      windowSize: 16
+      stride: 4
+
+  # GPU node selector
+  nodeSelector:
+    node.kubernetes.io/instance-type: g4dn.xlarge
+
+  # Tolerations for GPU nodes
+  tolerations:
+    - key: "nvidia.com/gpu"
+      operator: "Exists"
+      effect: "NoSchedule"
+
+  # Pod disruption budget
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+# -----------------------------------------------------------------------------
+# Pipeline Service Configuration
+# -----------------------------------------------------------------------------
+# Orchestrates data flow and event processing
+pipeline:
+  # Enable or disable this service
+  enabled: true
+
+  # Number of replicas
+  replicaCount: 3
+
+  image:
+    repository: nier/pipeline
+    tag: ""  # Defaults to appVersion
+    pullPolicy: IfNotPresent
+
+  # Resource requests and limits
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+
+  # Horizontal Pod Autoscaler configuration
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 15
+    targetCPUUtilizationPercentage: 70
+
+  # Kafka consumer configuration
+  kafka:
+    consumerGroup: "nier-pipeline"
+    # Topics to consume from
+    inputTopics:
+      - "nier.inference.results"
+    # Topics to produce to
+    outputTopics:
+      - "nier.pipeline.events"
+      - "nier.pipeline.activities"
+
+  # Processing configuration
+  processing:
+    # Enable deduplication
+    deduplication:
+      enabled: true
+      windowSeconds: 60
+    # Event aggregation settings
+    aggregation:
+      windowSeconds: 300
+      slideSeconds: 60
+
+  # Pod disruption budget
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+# -----------------------------------------------------------------------------
+# Storage Service Configuration
+# -----------------------------------------------------------------------------
+# Persists analytics data to databases and object storage
+storage:
+  # Enable or disable this service
+  enabled: true
+
+  # Number of replicas
+  replicaCount: 2
+
+  image:
+    repository: nier/storage
+    tag: ""  # Defaults to appVersion
+    pullPolicy: IfNotPresent
+
+  # Resource requests and limits
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+
+  # Horizontal Pod Autoscaler configuration
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+
+  # Data retention policies
+  retention:
+    # Raw frames retention (stored in S3)
+    rawFrames:
+      enabled: true
+      days: 7
+    # Analytics data retention (stored in PostgreSQL)
+    analyticsData:
+      enabled: true
+      days: 90
+    # Aggregated metrics retention
+    aggregatedMetrics:
+      enabled: true
+      days: 365
+
+  # S3 lifecycle configuration
+  s3Lifecycle:
+    enabled: true
+    # Transition to Glacier after 30 days
+    transitionToGlacierDays: 30
+    # Delete after 365 days
+    expirationDays: 365
+
+  # Pod disruption budget
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+# -----------------------------------------------------------------------------
+# Dashboard Service Configuration
+# -----------------------------------------------------------------------------
+# Web UI for visualization and monitoring
+dashboard:
+  # Enable or disable this service
+  enabled: true
+
+  # Number of replicas
+  replicaCount: 2
+
+  image:
+    repository: nier/dashboard
+    tag: ""  # Defaults to appVersion
+    pullPolicy: IfNotPresent
+
+  # Resource requests and limits
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+  # Horizontal Pod Autoscaler configuration
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: "alb"
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/healthcheck-path: /health
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+    hosts:
+      - host: dashboard.nier.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: dashboard-tls
+        hosts:
+          - dashboard.nier.example.com
+
+  # Authentication configuration
+  auth:
+    # Enable OIDC authentication
+    oidc:
+      enabled: true
+      issuer: "https://auth.example.com"
+      clientId: "nier-dashboard"
+      # Reference to secret containing client secret
+      existingSecret: "dashboard-oidc-secret"
+
+  # Feature flags
+  features:
+    # Enable real-time streaming updates
+    realTimeUpdates: true
+    # Enable video playback
+    videoPlayback: true
+    # Enable analytics export
+    exportEnabled: true
+
+  # Pod disruption budget
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+# -----------------------------------------------------------------------------
+# Service Account Configuration
+# -----------------------------------------------------------------------------
+serviceAccount:
+  # Create a service account for the platform
+  create: true
+  name: "nier-platform"
+  # Annotations for IRSA (IAM Roles for Service Accounts)
+  annotations:
+    eks.amazonaws.com/role-arn: ""
+
+# -----------------------------------------------------------------------------
+# Network Policies
+# -----------------------------------------------------------------------------
+networkPolicies:
+  # Enable network policies for service isolation
+  enabled: true

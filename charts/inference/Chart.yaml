@@ -1,0 +1,17 @@
+apiVersion: v2
+name: nier-inference
+description: A Helm chart for the Nier GPU inference service for PPE detection
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - inference
+  - gpu
+  - ppe-detection
+  - grpc
+  - kafka
+maintainers:
+  - name: Nier Team
+home: https://github.com/nier/inference
+sources:
+  - https://github.com/nier/inference

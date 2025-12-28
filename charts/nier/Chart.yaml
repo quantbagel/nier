@@ -1,0 +1,50 @@
+apiVersion: v2
+name: nier
+version: 0.1.0
+appVersion: "0.1.0"
+description: Factory floor analytics platform with egocentric camera glasses
+type: application
+
+keywords:
+  - factory
+  - analytics
+  - computer-vision
+  - iot
+  - streaming
+  - kafka
+
+home: https://github.com/reflex/nier
+maintainers:
+  - name: Nier Platform Team
+    email: platform@nier.io
+
+dependencies:
+  # Ingest service - receives video frames from camera glasses via WebSocket/gRPC
+  - name: ingest
+    version: "0.1.0"
+    repository: "file://../ingest"
+    condition: ingest.enabled
+
+  # Inference service - runs ML models for object detection and activity recognition
+  - name: inference
+    version: "0.1.0"
+    repository: "file://../inference"
+    condition: inference.enabled
+
+  # Pipeline service - orchestrates data flow and event processing
+  - name: pipeline
+    version: "0.1.0"
+    repository: "file://../pipeline"
+    condition: pipeline.enabled
+
+  # Storage service - persists analytics data to databases and object storage
+  - name: storage
+    version: "0.1.0"
+    repository: "file://../storage"
+    condition: storage.enabled
+
+  # Dashboard service - web UI for visualization and monitoring
+  - name: dashboard
+    version: "0.1.0"
+    repository: "file://../dashboard"
+    condition: dashboard.enabled

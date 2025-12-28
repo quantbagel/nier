@@ -1,0 +1,13 @@
+apiVersion: v2
+name: nier-dashboard
+description: A Helm chart for the NIER Next.js dashboard with real-time camera feeds and safety metrics
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - dashboard
+  - nextjs
+  - monitoring
+  - safety
+maintainers:
+  - name: NIER Team
